@@ -1,0 +1,4 @@
+# Heavy crawler dependencies (installs browser tooling).
+# Install this only if you want to run ingestion/crawler_agent.py.
+
+crawl4ai>=0.7.8

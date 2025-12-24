@@ -112,17 +112,16 @@ class IngestionOrchestrator:
                     
                     # Segregate assets
                     result = self.segregator.segregate_from_context(result)
-                    
-                    # Update Firestore with segregation data
-                    from firebase_admin_setup import get_db
-                    db = get_db()
+
+                    # Update raw_ingest with segregation data (best-effort)
                     try:
-                        db.collection('raw_ingest').document(context_id).update({
-                            'assets': result.get('assets', {}),
-                            'asset_counts': result.get('asset_counts', {})
-                        })
+                        self.segregator.repo.update_raw_ingest_assets(
+                            context_id,
+                            assets=result.get('assets', {}) or {},
+                            asset_counts=result.get('asset_counts', {}) or {},
+                        )
                     except Exception as e:
-                        logger.warning(f"Could not update assets in Firestore: {e}")
+                        logger.warning(f"Could not update assets in Supabase: {e}")
                     
                     # Mark queue entry as completed
                     self.url_manager.mark_completed(doc_id, context_id)
@@ -198,6 +197,18 @@ class IngestionOrchestrator:
                         )
                 except Exception as e:
                     logger.error(f"Failed to process PDF {pdf['url']}: {str(e)}")
+
+    def process_ocr_queue(self, limit: int = 5) -> Dict[str, int]:
+        """Process pending OCR tasks.
+
+        This runs a local OCR worker step that consumes `ocr_queue` items and writes
+        extracted text back to `raw_ingest`.
+        """
+        from ingestion.supabase_repo import SupabaseRepo
+        from ingestion.ocr_processor import OCRProcessor
+
+        processor = OCRProcessor(repo=SupabaseRepo.from_env())
+        return processor.process_pending(limit=limit)
     
     async def crawl_seed_urls(
         self,

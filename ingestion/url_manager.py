@@ -5,12 +5,11 @@ Manages crawl queue with priority scoring and scheduling
 
 import time
 from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 import logging
 
-from firebase_admin_setup import get_db  # type: ignore
-from google.cloud.firestore import SERVER_TIMESTAMP  # type: ignore
+from ingestion.supabase_repo import SupabaseRepo, utc_now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +36,16 @@ class URLManager:
         'other': 0.70
     }
     
-    def __init__(self):
-        """Initialize URL manager"""
-        self.db = get_db()
+    def __init__(self, repo: Optional[SupabaseRepo] = None):
+        """Initialize URL manager."""
+        self.repo = repo or SupabaseRepo.from_env()
         logger.info("URLManager initialized")
+
+    @staticmethod
+    def _to_utc_iso(dt: datetime) -> str:
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc).isoformat()
     
     def calculate_priority_score(
         self,
@@ -127,8 +132,8 @@ class URLManager:
             'priority': priority,
             'priority_score': priority_score,
             'status': 'pending',
-            'scheduled_time': scheduled_time or datetime.utcnow(),
-            'created_at': SERVER_TIMESTAMP,
+            'scheduled_time': self._to_utc_iso(scheduled_time or datetime.utcnow()),
+            'created_at': utc_now_iso(),
             'attempts': 0,
             'max_attempts': 3,
             'last_error': None,
@@ -136,22 +141,14 @@ class URLManager:
         }
         
         # Check if URL already exists
-        from google.cloud.firestore import FieldFilter  # type: ignore
-        existing = self.db.collection('crawl_queue')\
-            .where(filter=FieldFilter('url', '==', url))\
-            .where(filter=FieldFilter('status', '==', 'pending'))\
-            .limit(1)\
-            .stream()
-        
-        if list(existing):
+        if self.repo.crawl_queue_exists_pending(url):
             logger.info(f"URL already in queue: {url}")
             return None
         
-        doc_ref = self.db.collection('crawl_queue').document()
-        doc_ref.set(queue_entry)
+        queue_id = self.repo.insert_crawl_queue(queue_entry)
         
         logger.info(f"✓ Added to queue: {url} (score: {priority_score:.2f})")
-        return doc_ref.id
+        return queue_id
     
     def add_url_batch(
         self,
@@ -172,9 +169,6 @@ class URLManager:
         """
         doc_ids = []
         
-        batch = self.db.batch()
-        batch_count = 0
-        
         for url in urls:
             priority_score = self.calculate_priority_score(
                 url=url,
@@ -188,27 +182,14 @@ class URLManager:
                 'priority': priority,
                 'priority_score': priority_score,
                 'status': 'pending',
-                'scheduled_time': datetime.utcnow(),
-                'created_at': SERVER_TIMESTAMP,
+                'scheduled_time': self._to_utc_iso(datetime.utcnow()),
+                'created_at': utc_now_iso(),
                 'attempts': 0,
                 'max_attempts': 3,
                 'metadata': source_config
             }
-            
-            doc_ref = self.db.collection('crawl_queue').document()
-            batch.set(doc_ref, queue_entry)
-            doc_ids.append(doc_ref.id)
-            batch_count += 1
-            
-            # Firestore batch limit is 500
-            if batch_count >= 500:
-                batch.commit()
-                batch = self.db.batch()
-                batch_count = 0
-        
-        # Commit remaining
-        if batch_count > 0:
-            batch.commit()
+
+            doc_ids.append(self.repo.insert_crawl_queue(queue_entry))
         
         logger.info(f"✓ Added {len(urls)} URLs to queue")
         return doc_ids
@@ -228,23 +209,12 @@ class URLManager:
         Returns:
             List of queue entries
         """
-        from google.cloud.firestore import FieldFilter  # type: ignore
-        query = self.db.collection('crawl_queue')\
-            .where(filter=FieldFilter('status', '==', 'pending'))\
-            .where(filter=FieldFilter('scheduled_time', '<=', datetime.utcnow()))
-        
-        if domain_filter:
-            from google.cloud.firestore import FieldFilter  # type: ignore
-            query = query.where(filter=FieldFilter('domain', '==', domain_filter))
-        
-        # Order by priority score (descending)
-        query = query.order_by('priority_score', direction='DESCENDING')\
-            .limit(limit)
-        
+        rows = self.repo.select_next_crawl_queue(limit=limit, now_iso=utc_now_iso(), domain=domain_filter)
+
         urls = []
-        for doc in query.stream():
-            data = doc.to_dict()
-            data['doc_id'] = doc.id
+        for row in rows:
+            data = dict(row)
+            data['doc_id'] = data.get('id')
             urls.append(data)
         
         logger.info(f"Retrieved {len(urls)} URLs from queue")
@@ -261,10 +231,21 @@ class URLManager:
             True if successful
         """
         try:
-            self.db.collection('crawl_queue').document(doc_id).update({
-                'status': 'processing',
-                'processing_started_at': SERVER_TIMESTAMP
-            })
+            # best-effort attempt increment
+            current = self.repo.supabase.table('crawl_queue').select('attempts').eq('id', doc_id).limit(1).execute()
+            attempts = 0
+            data = getattr(current, 'data', None) or []
+            if data and isinstance(data, list):
+                attempts = int(data[0].get('attempts') or 0)
+
+            self.repo.update_crawl_queue(
+                doc_id,
+                {
+                    'status': 'processing',
+                    'processing_started_at': utc_now_iso(),
+                    'attempts': attempts + 1,
+                },
+            )
             return True
         except Exception as e:
             logger.error(f"Failed to mark processing: {str(e)}")
@@ -282,11 +263,14 @@ class URLManager:
             True if successful
         """
         try:
-            self.db.collection('crawl_queue').document(doc_id).update({
-                'status': 'completed',
-                'completed_at': SERVER_TIMESTAMP,
-                'context_id': context_id
-            })
+            self.repo.update_crawl_queue(
+                doc_id,
+                {
+                    'status': 'completed',
+                    'completed_at': utc_now_iso(),
+                    'context_id': context_id,
+                },
+            )
             logger.info(f"✓ Marked completed: {doc_id}")
             return True
         except Exception as e:
@@ -311,35 +295,31 @@ class URLManager:
             True if successful
         """
         try:
-            doc_ref = self.db.collection('crawl_queue').document(doc_id)
-            doc = doc_ref.get()
-            
-            if not doc.exists:
+            current = self.repo.supabase.table('crawl_queue').select('attempts,max_attempts').eq('id', doc_id).limit(1).execute()
+            rows = getattr(current, 'data', None) or []
+            if not rows:
                 return False
-            
-            data = doc.to_dict() if doc.exists else None
-            if not data:
-                return False
-            attempts = data.get('attempts', 0) + 1
-            max_attempts = data.get('max_attempts', 3)
+            row = rows[0]
+            attempts = int(row.get('attempts') or 0) + 1
+            max_attempts = int(row.get('max_attempts') or 3)
             
             update_data = {
                 'attempts': attempts,
                 'last_error': error_message,
-                'last_attempt_at': SERVER_TIMESTAMP
+                'last_attempt_at': utc_now_iso(),
             }
             
             if retry and attempts < max_attempts:
                 # Exponential backoff for retry
                 retry_delay = timedelta(minutes=2 ** attempts)
                 update_data['status'] = 'pending'
-                update_data['scheduled_time'] = datetime.utcnow() + retry_delay
+                update_data['scheduled_time'] = self._to_utc_iso(datetime.utcnow() + retry_delay)
                 logger.info(f"Retrying {doc_id} in {retry_delay}")
             else:
                 update_data['status'] = 'failed'
                 logger.error(f"Failed permanently: {doc_id}")
-            
-            doc_ref.update(update_data)
+
+            self.repo.update_crawl_queue(doc_id, update_data)
             return True
             
         except Exception as e:
@@ -362,15 +342,14 @@ class URLManager:
         }
         
         try:
-            from google.cloud.firestore import FieldFilter  # type: ignore
             for status in ['pending', 'processing', 'completed', 'failed']:
-                count = len(list(
-                    self.db.collection('crawl_queue')
-                    .where(filter=FieldFilter('status', '==', status))
-                    .stream()
-                ))
-                stats[status] = count
-                stats['total'] += count
+                resp = self.repo.supabase.table('crawl_queue').select('id', count='exact').eq('status', status).execute()
+                count_val = getattr(resp, 'count', None)
+                if count_val is None:
+                    data = getattr(resp, 'data', None) or []
+                    count_val = len(data)
+                stats[status] = int(count_val)
+                stats['total'] += int(count_val)
             
             logger.info(f"Queue stats: {stats}")
             return stats
@@ -389,30 +368,23 @@ class URLManager:
         Returns:
             Number of entries deleted
         """
-        cutoff = datetime.utcnow() - timedelta(days=days)
-        
-        from google.cloud.firestore import FieldFilter  # type: ignore
-        query = self.db.collection('crawl_queue')\
-            .where(filter=FieldFilter('status', 'in', ['completed', 'failed']))\
-            .where(filter=FieldFilter('completed_at', '<', cutoff))
-        
+        cutoff = self._to_utc_iso(datetime.utcnow() - timedelta(days=days))
+
+        # Fetch candidates (best-effort). If you need large-scale deletion, use SQL.
+        resp = (
+            self.repo.supabase.table('crawl_queue')
+            .select('id')
+            .in_('status', ['completed', 'failed'])
+            .lt('completed_at', cutoff)
+            .limit(1000)
+            .execute()
+        )
+        rows = list(getattr(resp, 'data', None) or [])
         deleted = 0
-        batch = self.db.batch()
-        batch_count = 0
-        
-        for doc in query.stream():
-            batch.delete(doc.reference)
+        for row in rows:
+            self.repo.supabase.table('crawl_queue').delete().eq('id', row['id']).execute()
             deleted += 1
-            batch_count += 1
-            
-            if batch_count >= 500:
-                batch.commit()
-                batch = self.db.batch()
-                batch_count = 0
-        
-        if batch_count > 0:
-            batch.commit()
-        
+
         logger.info(f"Cleaned {deleted} old entries")
         return deleted
 

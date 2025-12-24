@@ -16,8 +16,7 @@ from crawl4ai.extraction_strategy import LLMExtractionStrategy, JsonCssExtractio
 from crawl4ai.chunking_strategy import RegexChunking  # type: ignore
 from crawl4ai.async_configs import CacheMode  # type: ignore
 
-from firebase_admin_setup import get_db, get_bucket  # type: ignore
-from google.cloud.firestore import SERVER_TIMESTAMP  # type: ignore
+from ingestion.supabase_repo import SupabaseRepo, utc_now_iso
 
 
 # Configure logging
@@ -27,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 class AdaptiveCrawlerAgent:
     """
-    Adaptive web crawler with politeness policies and Firebase integration
+    Adaptive web crawler with politeness policies and Supabase persistence
     """
     
     def __init__(
@@ -55,9 +54,8 @@ class AdaptiveCrawlerAgent:
         self.domain_last_access: Dict[str, float] = {}
         self.robots_cache: Dict[str, RobotFileParser] = {}
         
-        # Firebase clients
-        self.db = get_db()
-        self.bucket = get_bucket()
+        # Backend
+        self.repo = SupabaseRepo.from_env()
         
         logger.info(f"Initialized AdaptiveCrawlerAgent with {rate_limit_delay}s rate limit")
     
@@ -193,8 +191,8 @@ class AdaptiveCrawlerAgent:
                             source_config=source_config
                         )
                         
-                        # Store in Firebase
-                        await self._store_to_firebase(context_obj)
+                        # Store in Supabase
+                        await self._store_to_supabase(context_obj)
                         
                         logger.info(f"✓ Successfully crawled: {url}")
                         return context_obj
@@ -229,8 +227,8 @@ class AdaptiveCrawlerAgent:
         Returns:
             Context object dict
         """
-        # Generate consistent document ID
-        doc_id = self.db.collection('raw_ingest').document().id
+        # Generate document ID
+        doc_id = self.repo.new_context_id()
         return {
             'success': True,
             'context_id': doc_id,
@@ -253,7 +251,7 @@ class AdaptiveCrawlerAgent:
             'provenance': {
                 'source_agency': source_config.get('agency', 'Unknown'),
                 'source_url': url,
-                'ingest_timestamp': SERVER_TIMESTAMP,
+                'ingest_timestamp': utc_now_iso(),
                 'crawl_timestamp': datetime.utcnow().isoformat(),
                 'original_format': 'HTML',
                 'reliability_score': source_config.get('reliability', 0.9),
@@ -279,9 +277,9 @@ class AdaptiveCrawlerAgent:
             'priority': source_config.get('priority', 'medium'),
         }
     
-    async def _store_to_firebase(self, context_obj: Dict[str, Any]) -> str:
+    async def _store_to_supabase(self, context_obj: Dict[str, Any]) -> str:
         """
-        Store crawled data to Firebase
+        Store crawled data to Supabase
         
         Args:
             context_obj: Context object to store
@@ -290,30 +288,23 @@ class AdaptiveCrawlerAgent:
             Document ID
         """
         try:
-            # Use the pre-generated document ID
-            doc_id = context_obj.get('_doc_id') or context_obj.get('context_id')
-            doc_ref = self.db.collection('raw_ingest').document(doc_id)
-            
-            # Remove internal field before storing
-            if '_doc_id' in context_obj:
-                del context_obj['_doc_id']
-            
-            doc_ref.set(context_obj)
-            
-            # Log to audit
-            self.db.collection('audit_logs').add({
-                'event_type': 'crawl_completed',
-                'document_id': doc_ref.id,
-                'url': context_obj['url'],
-                'timestamp': SERVER_TIMESTAMP,
-                'success': context_obj['metadata']['success']
-            })
-            
-            logger.info(f"✓ Stored to Firebase: {doc_ref.id}")
-            return doc_ref.id
+            doc_id = context_obj.get('context_id')
+            if not doc_id:
+                raise ValueError('context_obj missing context_id')
+
+            self.repo.upsert_raw_ingest(context_obj)
+            self.repo.add_audit_log(
+                event_type='crawl_completed',
+                document_id=doc_id,
+                url=context_obj.get('url'),
+                success=bool(context_obj.get('metadata', {}).get('success')),
+            )
+
+            logger.info(f"✓ Stored to Supabase: {doc_id}")
+            return doc_id
             
         except Exception as e:
-            logger.error(f"Failed to store to Firebase: {str(e)}")
+            logger.error(f"Failed to store to Supabase: {str(e)}")
             raise
     
     async def crawl_batch(

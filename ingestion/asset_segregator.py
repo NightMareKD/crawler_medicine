@@ -3,15 +3,12 @@ Asset Segregator
 Separates HTML content from PDFs and images for appropriate processing
 """
 
-import os
-import mimetypes
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 from urllib.parse import urlparse
 import logging
 from pathlib import Path
 
-from firebase_admin_setup import get_db, get_bucket  # type: ignore
-from google.cloud.firestore import SERVER_TIMESTAMP  # type: ignore
+from ingestion.supabase_repo import SupabaseRepo, utc_now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +25,9 @@ class AssetSegregator:
         'document': ['.doc', '.docx', '.txt', '.rtf']
     }
     
-    def __init__(self):
-        """Initialize asset segregator"""
-        self.db = get_db()
-        self.bucket = get_bucket()
+    def __init__(self, repo: Optional[SupabaseRepo] = None):
+        """Initialize asset segregator."""
+        self.repo = repo or SupabaseRepo.from_env()
         logger.info("AssetSegregator initialized")
     
     def detect_asset_type(self, url: str, content_type: Optional[str] = None) -> str:
@@ -163,7 +159,7 @@ class AssetSegregator:
         context_id: str
     ) -> Optional[str]:
         """
-        Download asset and store in Firebase Storage
+        Download asset and store in Supabase Storage
         
         Args:
             url: Asset URL
@@ -184,24 +180,30 @@ class AssetSegregator:
                 file_ext = Path(urlparse(url).path).suffix or f'.{asset_type}'
                 storage_path = f"{asset_type}s-raw/{context_id}/{Path(url).name}"
                 
-                # Upload to Firebase Storage
-                blob = self.bucket.blob(storage_path)
-                blob.upload_from_string(
-                    response.content,
-                    content_type=response.headers.get('content-type', 'application/octet-stream')
-                )
+                content_type = response.headers.get('content-type', 'application/octet-stream')
+                self.repo.upload_bytes(storage_path, response.content, content_type=content_type)
                 
                 logger.info(f"✓ Uploaded to storage: {storage_path}")
                 
-                # Update Firestore with storage reference
-                self.db.collection('raw_ingest').document(context_id).update({
-                    f'assets.downloaded.{asset_type}': {
+                # Update raw_ingest with storage reference (best-effort)
+                try:
+                    assets = self.repo.get_raw_ingest_assets(context_id)
+                    downloaded = dict((assets or {}).get('downloaded') or {})
+                    downloaded[asset_type] = {
                         'url': url,
                         'storage_path': storage_path,
-                        'uploaded_at': SERVER_TIMESTAMP,
-                        'size_bytes': len(response.content)
+                        'uploaded_at': utc_now_iso(),
+                        'size_bytes': len(response.content),
                     }
-                })
+                    merged_assets = dict(assets or {})
+                    merged_assets['downloaded'] = downloaded
+
+                    # asset_counts is optional here; keep existing value if present
+                    row = self.repo.get_raw_ingest(context_id, columns='asset_counts') or {}
+                    asset_counts = row.get('asset_counts') or {}
+                    self.repo.update_raw_ingest_assets(context_id, merged_assets, asset_counts)
+                except Exception as e:
+                    logger.warning("Could not update raw_ingest assets metadata: %s", e)
                 
                 return storage_path
                 
@@ -220,7 +222,7 @@ class AssetSegregator:
         Create queue entry for OCR processing
         
         Args:
-            storage_path: Firebase Storage path
+            storage_path: Supabase Storage object path
             context_id: Associated context document ID
             asset_type: Asset type
             priority: Processing priority
@@ -234,16 +236,14 @@ class AssetSegregator:
             'asset_type': asset_type,
             'priority': priority,
             'status': 'pending',
-            'created_at': SERVER_TIMESTAMP,
+            'created_at': utc_now_iso(),
             'attempts': 0,
             'max_attempts': 3
         }
-        
-        doc_ref = self.db.collection('ocr_queue').document()
-        doc_ref.set(queue_entry)
-        
-        logger.info(f"Created OCR queue entry: {doc_ref.id}")
-        return doc_ref.id
+
+        queue_id = self.repo.insert_ocr_queue(queue_entry)
+        logger.info(f"Created OCR queue entry: {queue_id}")
+        return queue_id
     
     def get_statistics(self) -> Dict[str, int]:
         """
@@ -260,23 +260,21 @@ class AssetSegregator:
             'ocr_pending': 0
         }
         
-        # Query Firestore for counts
+        # Best-effort statistics (requires raw_ingest table to exist)
         try:
-            raw_ingest = self.db.collection('raw_ingest').stream()
-            for doc in raw_ingest:
-                data = doc.to_dict()
+            resp = self.repo.supabase.table('raw_ingest').select('asset_counts,processing_status').limit(1000).execute()
+            rows = list(getattr(resp, 'data', None) or [])
+            for row in rows:
                 stats['total_documents'] += 1
-                
-                asset_counts = data.get('asset_counts', {})
-                stats['pdf_files'] += asset_counts.get('pdf', 0)
-                stats['images'] += asset_counts.get('images', 0)
-                
-                if data.get('processing_status', {}).get('ocr_required', False):
+                asset_counts = row.get('asset_counts') or {}
+                stats['pdf_files'] += int(asset_counts.get('pdf') or 0)
+                stats['images'] += int(asset_counts.get('images') or 0)
+                ps = row.get('processing_status') or {}
+                if ps.get('ocr_required') is True:
                     stats['ocr_pending'] += 1
-            
+
             logger.info(f"Statistics: {stats}")
             return stats
-            
         except Exception as e:
             logger.error(f"Failed to get statistics: {str(e)}")
             return stats
