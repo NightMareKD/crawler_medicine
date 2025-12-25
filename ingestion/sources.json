@@ -1,0 +1,59 @@
+{
+  "language_targets": {
+    "si": 0.40,
+    "ta": 0.25,
+    "en": 0.20,
+    "romanized": 0.15
+  },
+  "sources": [
+    {
+      "id": "epidemiology_unit",
+      "agency": "Epidemiology Unit (Sri Lanka)",
+      "seed_urls": [
+        "http://www.epid.gov.lk/",
+        "https://www.epid.gov.lk/"
+      ],
+      "reliability": 0.95,
+      "user_demand": 0.90,
+      "country": "LK",
+      "region": "national",
+      "topics": [
+        "surveillance",
+        "outbreaks",
+        "dengue",
+        "immunization"
+      ],
+      "notes": "National public health surveillance and advisories."
+    },
+    {
+      "id": "colombo_south_teaching_hospital",
+      "agency": "Colombo South Teaching Hospital",
+      "seed_urls": [],
+      "reliability": 0.90,
+      "user_demand": 0.70,
+      "country": "LK",
+      "region": "Western Province",
+      "topics": [
+        "clinic_hours",
+        "contact_info",
+        "services"
+      ],
+      "notes": "Add official site URLs when confirmed."
+    },
+    {
+      "id": "national_hospital_kandy",
+      "agency": "National Hospital Kandy",
+      "seed_urls": [],
+      "reliability": 0.90,
+      "user_demand": 0.70,
+      "country": "LK",
+      "region": "Central Province",
+      "topics": [
+        "clinic_hours",
+        "contact_info",
+        "services"
+      ],
+      "notes": "Add official site URLs when confirmed."
+    }
+  ]
+}

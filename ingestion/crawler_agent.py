@@ -249,12 +249,16 @@ class AdaptiveCrawlerAgent:
                 }
             },
             'provenance': {
+                'source_id': source_config.get('source_id'),
                 'source_agency': source_config.get('agency', 'Unknown'),
                 'source_url': url,
                 'ingest_timestamp': utc_now_iso(),
                 'crawl_timestamp': datetime.utcnow().isoformat(),
                 'original_format': 'HTML',
                 'reliability_score': source_config.get('reliability', 0.9),
+                'country': source_config.get('country'),
+                'region': source_config.get('region'),
+                'topic_hints': source_config.get('topics') or [],
                 'domain': self._get_domain(url),
                 'crawler_version': 'Crawl4AI-v0.7.8',
             },
@@ -265,6 +269,7 @@ class AdaptiveCrawlerAgent:
                 'language': result.metadata.get('language', 'si') if result.metadata else 'si',
                 'status_code': result.status_code,
                 'success': result.success,
+                'source_id': source_config.get('source_id'),
             },
             'processing_status': {
                 'ocr_required': False,  # HTML content, no OCR needed
