@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Q&A Review - Multilingual Health Corpus</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px 32px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            font-size: 1.6rem;
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        nav a {
+            color: #aaa;
+            text-decoration: none;
+            margin-left: 24px;
+            transition: color 0.3s;
+        }
+
+        nav a:hover {
+            color: #00d9ff;
+        }
+
+        .qa-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .qa-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0, 217, 255, 0.15);
+        }
+
+        .qa-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .qa-meta {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .badge-sinhala {
+            background: rgba(0, 217, 255, 0.2);
+            color: #00d9ff;
+        }
+
+        .badge-tamil {
+            background: rgba(255, 170, 0, 0.2);
+            color: #ffaa00;
+        }
+
+        .badge-english {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+        }
+
+        .badge-singlish {
+            background: rgba(0, 217, 255, 0.3);
+            color: #00d9ff;
+        }
+
+        .badge-tamilish {
+            background: rgba(255, 170, 0, 0.3);
+            color: #ffaa00;
+        }
+
+        .question {
+            background: rgba(0, 217, 255, 0.1);
+            border-left: 4px solid #00d9ff;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+        }
+
+        .answer {
+            background: rgba(0, 255, 136, 0.1);
+            border-left: 4px solid #00ff88;
+            padding: 16px;
+            border-radius: 8px;
+            color: #ddd;
+            line-height: 1.6;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-approve {
+            background: linear-gradient(90deg, #00ff88, #00cc6a);
+            color: #000;
+        }
+
+        .btn-approve:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 16px rgba(0, 255, 136, 0.4);
+        }
+
+        .btn-reject {
+            background: rgba(255, 68, 68, 0.3);
+            color: #ff6868;
+            border: 1px solid rgba(255, 68, 68, 0.5);
+        }
+
+        .btn-reject:hover {
+            background: rgba(255, 68, 68, 0.5);
+        }
+
+        .btn-edit {
+            background: rgba(255, 255, 255, 0.1);
+            color: #aaa;
+        }
+
+        .btn-edit:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: #666;
+        }
+
+        .empty-state h2 {
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+            color: #888;
+        }
+
+        .counter {
+            background: rgba(0, 217, 255, 0.2);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>📝 Q&A Review Queue</h1>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <span class="counter">{{ qa_pairs | length }} pending</span>
+                <nav>
+                    <a href="/">Dashboard</a>
+                    <a href="/review">Review Q&A</a>
+                    <a href="/bias-report">Bias Report</a>
+                </nav>
+            </div>
+        </header>
+
+        {% if qa_pairs %}
+        {% for qa in qa_pairs %}
+        <div class="qa-card" id="qa-{{ qa.id }}">
+            <div class="qa-header">
+                <div class="qa-meta">
+                    <span class="badge badge-{{ qa.question_language or 'english' }}">
+                        {{ (qa.question_language or 'english') | title }}
+                    </span>
+                    {% if qa.question_is_romanized %}
+                    <span class="badge badge-{{ qa.question_romanized_type or 'singlish' }}">
+                        {{ (qa.question_romanized_type or 'romanized') | title }}
+                    </span>
+                    {% endif %}
+                    {% if qa.domain %}
+                    <span class="badge" style="background: rgba(255,255,255,0.1); color: #888;">
+                        {{ qa.domain | replace('_', ' ') | title }}
+                    </span>
+                    {% endif %}
+                </div>
+                <div style="color: #666; font-size: 0.85rem;">
+                    ID: {{ qa.id[:8] }}...
+                </div>
+            </div>
+
+            <div class="question">
+                <strong>Q:</strong> {{ qa.question_text }}
+            </div>
+
+            <div class="answer">
+                <strong>A:</strong> {{ qa.answer_text }}
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-edit" onclick="editQA('{{ qa.id }}')">Edit</button>
+                <button class="btn btn-reject" onclick="rejectQA('{{ qa.id }}')">Reject</button>
+                <button class="btn btn-approve" onclick="approveQA('{{ qa.id }}')">✓ Approve</button>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="qa-card empty-state">
+            <h2>✅ All caught up!</h2>
+            <p>No Q&A pairs pending review.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        async function approveQA(id) {
+            try {
+                const response = await fetch(`/api/qa-pairs/${id}/verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.ok) {
+                    const card = document.getElementById(`qa-${id}`);
+                    card.style.opacity = '0.5';
+                    card.style.transform = 'translateX(100px)';
+                    setTimeout(() => card.remove(), 300);
+                }
+            } catch (error) {
+                console.error('Error approving Q&A:', error);
+            }
+        }
+
+        function rejectQA(id) {
+            if (confirm('Are you sure you want to reject this Q&A pair?')) {
+                const card = document.getElementById(`qa-${id}`);
+                card.style.opacity = '0.5';
+                card.style.transform = 'translateX(-100px)';
+                setTimeout(() => card.remove(), 300);
+            }
+        }
+
+        function editQA(id) {
+            alert('Edit functionality coming soon!');
+        }
+    </script>
+</body>
+
+</html>

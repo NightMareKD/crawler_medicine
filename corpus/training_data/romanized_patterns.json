@@ -1,0 +1,278 @@
+{
+    "singlish_markers": {
+        "question_words": [
+            "koheda",
+            "mokakda",
+            "kawda",
+            "kawada",
+            "keeyada",
+            "aida",
+            "eda",
+            "monawada"
+        ],
+        "pronouns": [
+            "mama",
+            "oya",
+            "api",
+            "umba",
+            "eyaa",
+            "eyage",
+            "mage",
+            "oyage",
+            "apige"
+        ],
+        "particles": [
+            "da",
+            "ද",
+            "neda",
+            "neda",
+            "ne",
+            "ko",
+            "lu",
+            "ado",
+            "aney",
+            "nan"
+        ],
+        "verbs": [
+            "ganna",
+            "yanna",
+            "enna",
+            "kanna",
+            "bonna",
+            "karanna",
+            "balanava",
+            "hitinava",
+            "innava"
+        ],
+        "nouns": [
+            "amma",
+            "thaththa",
+            "gedara",
+            "pasala",
+            "hospital",
+            "doctor",
+            "beheth"
+        ],
+        "common_phrases": [
+            "kohomada",
+            "mokakda",
+            "mokada",
+            "keeyada",
+            "kawada",
+            "ehema",
+            "meka",
+            "eka",
+            "harida",
+            "neda",
+            "puluwanda",
+            "epane",
+            "ithin",
+            "namuth",
+            "hinda"
+        ]
+    },
+    "tamilish_markers": {
+        "question_words": [
+            "enna",
+            "enga",
+            "eppo",
+            "evlo",
+            "yaru",
+            "ethu"
+        ],
+        "pronouns": [
+            "naan",
+            "nee",
+            "avan",
+            "aval",
+            "naanga",
+            "neengal",
+            "avanga"
+        ],
+        "particles": [
+            "la",
+            "le",
+            "lam",
+            "pola",
+            "thaan",
+            "um"
+        ],
+        "verbs": [
+            "vaa",
+            "poo",
+            "saapdu",
+            "paru",
+            "keelu",
+            "sollu",
+            "pannunga"
+        ],
+        "common_phrases": [
+            "epdi",
+            "enna",
+            "enga",
+            "evlo",
+            "inga",
+            "anga",
+            "appuram",
+            "mudiyuma",
+            "theriyuma",
+            "puriyutha",
+            "illai",
+            "aama",
+            "seri",
+            "ponga",
+            "vanga"
+        ]
+    },
+    "mixed_indicators": {
+        "english_health_terms": [
+            "clinic",
+            "hospital",
+            "doctor",
+            "fever",
+            "dengue",
+            "vaccine",
+            "appointment",
+            "opd"
+        ],
+        "code_switch_patterns": [
+            {
+                "pattern": "mage .+ hospital",
+                "type": "singlish_english"
+            },
+            {
+                "pattern": "hospital .+ koheda",
+                "type": "singlish_english"
+            },
+            {
+                "pattern": "doctor .+ innawada",
+                "type": "singlish_english"
+            },
+            {
+                "pattern": "naan .+ hospital",
+                "type": "tamilish_english"
+            },
+            {
+                "pattern": "hospital .+ enga",
+                "type": "tamilish_english"
+            }
+        ]
+    },
+    "romanization_patterns": {
+        "sinhala_to_roman": {
+            "ä": [
+                "a",
+                "ae"
+            ],
+            "ā": [
+                "aa",
+                "a"
+            ],
+            "ī": [
+                "ee",
+                "i"
+            ],
+            "ū": [
+                "oo",
+                "u"
+            ],
+            "ṇ": [
+                "n"
+            ],
+            "ṅ": [
+                "n",
+                "ng"
+            ],
+            "ḍ": [
+                "d"
+            ],
+            "ṭ": [
+                "t"
+            ]
+        }
+    },
+    "training_examples": {
+        "singlish": [
+            {
+                "text": "mage amma dengue clinic eka koheda",
+                "intent": "asking_location"
+            },
+            {
+                "text": "hospital time kandy today mokakda",
+                "intent": "asking_time"
+            },
+            {
+                "text": "doctor appointment ganna puluwanda",
+                "intent": "asking_appointment"
+            },
+            {
+                "text": "amma fever hariyata thiyenawa mama balanne",
+                "intent": "asking_symptoms"
+            },
+            {
+                "text": "dengue vaccine eka innawada",
+                "intent": "general_info"
+            },
+            {
+                "text": "opd eka udey keeyatada",
+                "intent": "asking_time"
+            },
+            {
+                "text": "hospital eke phone number eka mokakda",
+                "intent": "asking_contact"
+            },
+            {
+                "text": "emergency room koheda",
+                "intent": "emergency"
+            },
+            {
+                "text": "platelet count eka ekata keeyada",
+                "intent": "asking_treatment"
+            }
+        ],
+        "tamilish": [
+            {
+                "text": "dengue clinic enga irukku",
+                "intent": "asking_location"
+            },
+            {
+                "text": "hospital time enna",
+                "intent": "asking_time"
+            },
+            {
+                "text": "doctor appointment epdi edukkanum",
+                "intent": "asking_appointment"
+            },
+            {
+                "text": "ennakku kaichal irukku enna seyanum",
+                "intent": "asking_symptoms"
+            },
+            {
+                "text": "vaccine enga poduvanga",
+                "intent": "asking_location"
+            },
+            {
+                "text": "opd eppo open",
+                "intent": "asking_time"
+            }
+        ],
+        "pure_english": [
+            {
+                "text": "where is the dengue clinic",
+                "intent": "asking_location"
+            },
+            {
+                "text": "what time does the hospital open",
+                "intent": "asking_time"
+            },
+            {
+                "text": "how to book an appointment",
+                "intent": "asking_appointment"
+            },
+            {
+                "text": "what are the symptoms of dengue",
+                "intent": "asking_symptoms"
+            }
+        ]
+    }
+}

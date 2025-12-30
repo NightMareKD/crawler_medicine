@@ -1,0 +1,46 @@
+{
+  "hospitals": [
+    {"name": "National Hospital of Sri Lanka", "aliases": ["National Hospital", "Colombo National Hospital"], "location": "Colombo", "type": "teaching"},
+    {"name": "Colombo South Teaching Hospital", "aliases": ["Kalubowila Hospital", "CSTH"], "location": "Colombo", "type": "teaching"},
+    {"name": "Lady Ridgeway Hospital", "aliases": ["LRH", "Lady Ridgeway"], "location": "Colombo", "type": "children"},
+    {"name": "De Soysa Hospital for Women", "aliases": ["De Soysa", "Castle Street Hospital"], "location": "Colombo", "type": "maternity"},
+    {"name": "Kandy Teaching Hospital", "aliases": ["Kandy Hospital", "Peradeniya Hospital"], "location": "Kandy", "type": "teaching"},
+    {"name": "Karapitiya Teaching Hospital", "aliases": ["Karapitiya", "Galle Hospital"], "location": "Galle", "type": "teaching"},
+    {"name": "Jaffna Teaching Hospital", "aliases": ["Jaffna Hospital"], "location": "Jaffna", "type": "teaching"},
+    {"name": "Batticaloa Teaching Hospital", "aliases": ["Batticaloa Hospital"], "location": "Batticaloa", "type": "teaching"},
+    {"name": "Anuradhapura Teaching Hospital", "aliases": ["Anuradhapura Hospital"], "location": "Anuradhapura", "type": "teaching"},
+    {"name": "Ratnapura Provincial Hospital", "aliases": ["Ratnapura Hospital"], "location": "Ratnapura", "type": "provincial"},
+    {"name": "Kurunegala Teaching Hospital", "aliases": ["Kurunegala Hospital"], "location": "Kurunegala", "type": "teaching"},
+    {"name": "Badulla Provincial Hospital", "aliases": ["Badulla Hospital"], "location": "Badulla", "type": "provincial"},
+    {"name": "Matara General Hospital", "aliases": ["Matara Hospital"], "location": "Matara", "type": "general"},
+    {"name": "Negombo District Hospital", "aliases": ["Negombo Hospital"], "location": "Negombo", "type": "district"},
+    {"name": "Ragama Teaching Hospital", "aliases": ["Ragama Hospital", "North Colombo"], "location": "Ragama", "type": "teaching"}
+  ],
+  "diseases": [
+    {"name": "Dengue Fever", "aliases": ["dengue", "ඩෙංගු", "டெங்கு", "dengu"], "keywords": ["mosquito", "fever", "platelet"]},
+    {"name": "Leptospirosis", "aliases": ["lepto", "rat fever", "මූත්‍ර රෝග"], "keywords": ["paddy", "flood", "rat"]},
+    {"name": "COVID-19", "aliases": ["covid", "corona", "කොවිඩ්"], "keywords": ["vaccine", "pcr", "antigen"]},
+    {"name": "Tuberculosis", "aliases": ["TB", "ක්ෂය", "காசநோய்"], "keywords": ["cough", "lung"]},
+    {"name": "Malaria", "aliases": ["මැලේරියා", "மலேரியா"], "keywords": ["mosquito", "fever", "chills"]},
+    {"name": "Chickenpox", "aliases": ["chicken pox", "සුළු වසූරිය"], "keywords": ["rash", "blister"]},
+    {"name": "Typhoid", "aliases": ["typhoid fever", "ටයිෆොයිඩ්"], "keywords": ["fever", "diarrhea"]}
+  ],
+  "symptoms": [
+    {"name": "Fever", "aliases": ["උණ", "காய்ச்சல்", "una", "fever"]},
+    {"name": "Headache", "aliases": ["හිසරදය", "தலைவலி", "headache", "hisa radeema"]},
+    {"name": "Body Pain", "aliases": ["ශරීර වේදනාව", "உடல் வலி", "body ache"]},
+    {"name": "Cough", "aliases": ["කැස්ස", "இருமல்", "cough", "kassa"]},
+    {"name": "Vomiting", "aliases": ["වමනය", "வாந்தி", "vomiting"]},
+    {"name": "Diarrhea", "aliases": ["පාචනය", "வயிற்றுப்போக்கு", "diarrhea"]},
+    {"name": "Rash", "aliases": ["කුෂ්ඨ", "சொறி", "rash", "skin rash"]}
+  ],
+  "clinics": [
+    {"name": "OPD", "aliases": ["Outpatient Department", "Out Patient", "opd", "ஓபிடி"]},
+    {"name": "Dengue Clinic", "aliases": ["dengue clinic", "ඩෙංගු සායනය", "டெங்கு கிளினிக்"]},
+    {"name": "Vaccination Center", "aliases": ["vaccine center", "එන්නත් මධ්‍යස්ථානය", "தடுப்பூசி மையம்"]},
+    {"name": "Mental Health Clinic", "aliases": ["psychiatry", "මානසික සෞඛ්‍ය"]},
+    {"name": "Maternal Clinic", "aliases": ["antenatal", "මාතෘ සායනය", "ante natal clinic"]},
+    {"name": "Eye Clinic", "aliases": ["ophthalmology", "ඇස් සායනය", "eye opd"]},
+    {"name": "Dental Clinic", "aliases": ["dental", "දන්ත සායනය", "பல் மருத்துவமனை"]}
+  ]
+}
