@@ -126,3 +126,19 @@ def test_ingestion_package_import_is_safe_without_crawl4ai(monkeypatch):
     import importlib
 
     importlib.reload(importlib.import_module("ingestion"))
+
+
+def test_source_registry_loads_defaults():
+    from ingestion.source_registry import SourceRegistry
+
+    reg = SourceRegistry.load_default()
+    sources = reg.list_sources()
+
+    assert len(sources) >= 3
+    assert reg.get("epidemiology_unit") is not None
+
+    targets = reg.language_targets()
+    assert targets.get("si") == 0.40
+    assert targets.get("ta") == 0.25
+    assert targets.get("en") == 0.20
+    assert targets.get("romanized") == 0.15
