@@ -13,6 +13,16 @@ import os
 from typing import Optional
 
 
+# Load local .env if present so scripts work without manually exporting vars.
+# Keep this best-effort: the project still supports using real environment variables.
+try:  # pragma: no cover
+    from dotenv import load_dotenv  # type: ignore
+
+    load_dotenv(override=False)
+except Exception:
+    pass
+
+
 _SUPABASE_CLIENT = None
 
 

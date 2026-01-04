@@ -2,8 +2,90 @@
 -- Adds language annotation, Q&A pairs, bias tracking, and versioning support
 
 -- =============================================
+-- 0. Base Ingestion Tables (Queue + Storage Metadata)
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS crawl_queue (
+    id TEXT PRIMARY KEY,
+    url TEXT NOT NULL,
+    domain TEXT,
+    source_agency TEXT,
+    priority TEXT,
+    priority_score DOUBLE PRECISION,
+    status TEXT NOT NULL,
+    scheduled_time TIMESTAMPTZ,
+    attempts INTEGER DEFAULT 0,
+    max_attempts INTEGER DEFAULT 3,
+    last_error TEXT,
+    last_attempt_at TIMESTAMPTZ,
+    processing_started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    context_id TEXT,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS raw_ingest (
+    id TEXT PRIMARY KEY,
+    url TEXT,
+    content JSONB,
+    provenance JSONB DEFAULT '{}'::jsonb,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    processing_status JSONB DEFAULT '{}'::jsonb,
+    assets JSONB DEFAULT '{}'::jsonb,
+    asset_counts JSONB DEFAULT '{}'::jsonb,
+    ocr JSONB DEFAULT '{}'::jsonb,
+    priority TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ocr_queue (
+    id TEXT PRIMARY KEY,
+    context_id TEXT NOT NULL,
+    storage_path TEXT NOT NULL,
+    asset_type TEXT NOT NULL,
+    priority TEXT,
+    status TEXT NOT NULL,
+    attempts INTEGER DEFAULT 0,
+    max_attempts INTEGER DEFAULT 3,
+    processing_started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    failed_at TIMESTAMPTZ,
+    last_error TEXT,
+    result JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id TEXT PRIMARY KEY,
+    event_type TEXT NOT NULL,
+    document_id TEXT NOT NULL,
+    url TEXT,
+    success BOOLEAN,
+    timestamp TIMESTAMPTZ DEFAULT NOW(),
+    details JSONB DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX IF NOT EXISTS idx_crawl_queue_status_priority ON crawl_queue (status, priority_score DESC);
+CREATE INDEX IF NOT EXISTS idx_crawl_queue_scheduled_time ON crawl_queue (scheduled_time);
+CREATE INDEX IF NOT EXISTS idx_ocr_queue_status_created_at ON ocr_queue (status, created_at);
+CREATE INDEX IF NOT EXISTS idx_ocr_queue_status_priority ON ocr_queue (status, priority);
+
+-- =============================================
 -- 1. Extend raw_ingest table with language/annotation columns
 -- =============================================
+
+-- Ensure base columns exist even if raw_ingest was created earlier with a different schema.
+ALTER TABLE raw_ingest ADD COLUMN IF NOT EXISTS url TEXT;
+ALTER TABLE raw_ingest ADD COLUMN IF NOT EXISTS content JSONB;
+ALTER TABLE raw_ingest ADD COLUMN IF NOT EXISTS provenance JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE raw_ingest ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE raw_ingest ADD COLUMN IF NOT EXISTS processing_status JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE raw_ingest ADD COLUMN IF NOT EXISTS assets JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE raw_ingest ADD COLUMN IF NOT EXISTS asset_counts JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE raw_ingest ADD COLUMN IF NOT EXISTS ocr JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE raw_ingest ADD COLUMN IF NOT EXISTS priority TEXT;
+ALTER TABLE raw_ingest ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 
 ALTER TABLE raw_ingest ADD COLUMN IF NOT EXISTS detected_language TEXT;
 ALTER TABLE raw_ingest ADD COLUMN IF NOT EXISTS language_confidence FLOAT;
